@@ -5,7 +5,6 @@ storageClass:
   provisioner: kubernetes.io/aws-ebs # use this provisioner if using the Amazon EKS add-on
   volumeBindingMode: WaitForFirstConsumer
   reclaimPolicy: Delete # This should be Retain for a production deployment, but is set to delete to not keep TBs of disk space reserved
-  replicaCount: 2
 frontend:
   ingress:
     enabled: true
