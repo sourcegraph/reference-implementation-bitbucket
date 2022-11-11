@@ -1,0 +1,101 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    description: Backend for syntax highlighting operations.
+  labels:
+    {{- include "sourcegraph.labels" . | nindent 4 }}
+    {{- if .Values.syntectServer.labels }}
+      {{- toYaml .Values.syntectServer.labels | nindent 4 }}
+    {{- end }}
+    deploy: sourcegraph
+    app.kubernetes.io/component: syntect-server
+  name: {{ .Values.syntectServer.name }}
+spec:
+  minReadySeconds: 10
+  replicas: {{ .Values.syntectServer.replicaCount }}
+  revisionHistoryLimit: {{ .Values.sourcegraph.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      {{- include "sourcegraph.selectorLabels" . | nindent 6 }}
+      app: syntect-server
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: syntect-server
+      {{- if .Values.sourcegraph.podAnnotations }}
+      {{- toYaml .Values.sourcegraph.podAnnotations | nindent 8 }}
+      {{- end }}
+      {{- if .Values.syntectServer.podAnnotations }}
+      {{- toYaml .Values.syntectServer.podAnnotations | nindent 8 }}
+      {{- end }}
+      labels:
+      {{- include "sourcegraph.selectorLabels" . | nindent 8 }}
+      {{- if .Values.sourcegraph.podLabels }}
+      {{- toYaml .Values.sourcegraph.podLabels | nindent 8 }}
+      {{- end }}
+      {{- if .Values.syntectServer.podLabels }}
+      {{- toYaml .Values.syntectServer.podLabels | nindent 8 }}
+      {{- end }}
+        deploy: sourcegraph
+        app: syntect-server
+    spec:
+      containers:
+      - name: syntect-server
+        env:
+        {{- range $name, $item := .Values.syntectServer.env}}
+        - name: {{ $name }}
+          {{- $item | toYaml | nindent 10 }}
+        {{- end }}
+        image: {{ include "sourcegraph.image" (list . "syntectServer") }}
+        imagePullPolicy: {{ .Values.sourcegraph.image.pullPolicy }}
+        {{- with .Values.syntectServer.args }}
+        args:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        terminationMessagePolicy: FallbackToLogsOnError
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: http
+            scheme: HTTP
+          initialDelaySeconds: 5
+          timeoutSeconds: 5
+        ports:
+        - containerPort: 9238
+          name: http
+        readinessProbe:
+          tcpSocket:
+            port: http
+        {{- if not .Values.sourcegraph.localDevMode }}
+        resources:
+          {{- toYaml .Values.syntectServer.resources | nindent 10 }}
+        {{- end }}
+        securityContext:
+          {{- toYaml .Values.syntectServer.containerSecurityContext | nindent 10 }}
+        volumeMounts:
+        {{- if .Values.syntectServer.extraVolumeMounts }}
+        {{- toYaml .Values.syntectServer.extraVolumeMounts | nindent 8 }}
+        {{- end }}
+      {{- if .Values.syntectServer.extraContainers }}
+        {{- toYaml .Values.syntectServer.extraContainers | nindent 6 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.syntectServer.podSecurityContext | nindent 8 }}
+      {{- include "sourcegraph.nodeSelector" (list . "syntectServer" ) | trim | nindent 6 }}
+      {{- include "sourcegraph.affinity" (list . "syntectServer" ) | trim | nindent 6 }}
+      {{- include "sourcegraph.tolerations" (list . "syntectServer" ) | trim | nindent 6 }}
+      {{- with .Values.sourcegraph.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- include "sourcegraph.renderServiceAccountName" (list . "syntectServer") | trim | nindent 6 }}
+      volumes:
+      {{- if .Values.syntectServer.extraVolumes }}
+      {{- toYaml .Values.syntectServer.extraVolumes | nindent 6 }}
+      {{- end }}

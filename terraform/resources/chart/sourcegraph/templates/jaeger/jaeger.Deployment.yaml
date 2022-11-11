@@ -1,0 +1,107 @@
+{{- if and .Values.jaeger.enabled (not .Values.openTelemetry.enabled) -}}
+{{- fail "When 'jaeger.enabled' is set to true, 'openTelemetry.enabled' must be set to true as well." }}
+{{- end }}
+{{- if .Values.jaeger.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.jaeger.name }}
+  labels:
+    {{- include "sourcegraph.jaeger.labels" . | nindent 4 }}
+    {{- if .Values.jaeger.labels }}
+      {{- toYaml .Values.jaeger.labels | nindent 4 }}
+    {{- end }}
+    deploy: sourcegraph
+    app.kubernetes.io/component: all-in-one
+    app: jaeger
+spec:
+  replicas: {{ .Values.jaeger.replicaCount }}
+  revisionHistoryLimit: {{ .Values.sourcegraph.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      {{- include "sourcegraph.jaeger.selectorLabels" . | nindent 6 }}
+      app: jaeger
+      app.kubernetes.io/component: all-in-one
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "16686"
+        kubectl.kubernetes.io/default-container: jaeger
+      {{- if .Values.sourcegraph.podAnnotations }}
+      {{- toYaml .Values.sourcegraph.podAnnotations | nindent 8 }}
+      {{- end }}
+      {{- if .Values.jaeger.podAnnotations }}
+      {{- toYaml .Values.jaeger.podAnnotations | nindent 8 }}
+      {{- end }}
+      labels:
+      {{- include "sourcegraph.jaeger.selectorLabels" . | nindent 8 }}
+      {{- if .Values.sourcegraph.podLabels }}
+      {{- toYaml .Values.sourcegraph.podLabels | nindent 8 }}
+      {{- end }}
+      {{- if .Values.jaeger.podLabels }}
+      {{- toYaml .Values.jaeger.podLabels | nindent 8 }}
+      {{- end }}
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app: jaeger
+        deploy: sourcegraph
+        app.kubernetes.io/component: all-in-one
+    spec:
+      containers:
+      - name: jaeger
+        image: {{ include "sourcegraph.image" (list . "jaeger") }}
+        imagePullPolicy: {{ .Values.sourcegraph.image.pullPolicy }}
+        args: {{- default (list "--memory.max-traces=20000") .Values.jaeger.args | toYaml | nindent 8 }}
+        env:
+        {{- range $name, $item := .Values.jaeger.env}}
+        - name: {{ $name }}
+          {{- $item | toYaml | nindent 10 }}
+        {{- end }}
+        ports:
+        - containerPort: 5775
+          protocol: UDP
+        - containerPort: 6831
+          protocol: UDP
+        - containerPort: 6832
+          protocol: UDP
+        - containerPort: 5778
+          protocol: TCP
+        - containerPort: 16686
+          protocol: TCP
+        - containerPort: 14250
+          protocol: TCP
+        readinessProbe:
+          httpGet:
+            path: "/"
+            port: 14269
+          initialDelaySeconds: 5
+        {{- if not .Values.sourcegraph.localDevMode }}
+        resources:
+          {{- toYaml .Values.jaeger.resources | nindent 10 }}
+        {{- end }}
+        securityContext:
+          {{- toYaml .Values.jaeger.containerSecurityContext | nindent 10 }}
+        volumeMounts:
+        {{- if .Values.jaeger.extraVolumeMounts }}
+        {{- toYaml .Values.jaeger.extraVolumeMounts | nindent 8 }}
+        {{- end }}
+      {{- if .Values.jaeger.extraContainers }}
+        {{- toYaml .Values.jaeger.extraContainers | nindent 6 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.jaeger.podSecurityContext | nindent 8 }}
+      {{- include "sourcegraph.nodeSelector" (list . "jaeger" ) | trim | nindent 6 }}
+      {{- include "sourcegraph.affinity" (list . "jaeger" ) | trim | nindent 6 }}
+      {{- include "sourcegraph.tolerations" (list . "jaeger" ) | trim | nindent 6 }}
+      {{- with .Values.sourcegraph.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- include "sourcegraph.renderServiceAccountName" (list . "jaeger") | trim | nindent 6 }}
+      {{- end }}
+      volumes:
+      {{- if .Values.jaeger.extraVolumes }}
+      {{- toYaml .Values.jaeger.extraVolumes | nindent 6 }}
+      {{- end }}
+{{- end }}

@@ -1,0 +1,110 @@
+{{- if .Values.grafana.enabled -}}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  annotations:
+    description: Metrics/monitoring dashboards and alerts.
+  labels:
+    {{- include "sourcegraph.labels" . | nindent 4 }}
+    {{- if .Values.grafana.labels }}
+      {{- toYaml .Values.grafana.labels | nindent 4 }}
+    {{- end }}
+    deploy: sourcegraph
+    app.kubernetes.io/component: grafana
+  name: {{ .Values.grafana.name }}
+spec:
+  replicas: {{ .Values.grafana.replicaCount }}
+  revisionHistoryLimit: {{ .Values.sourcegraph.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      app: grafana
+  serviceName: grafana
+  updateStrategy:
+     type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: grafana
+      {{- if .Values.sourcegraph.podAnnotations }}
+      {{- toYaml .Values.sourcegraph.podAnnotations | nindent 8 }}
+      {{- end }}
+      {{- if .Values.grafana.podAnnotations }}
+      {{- toYaml .Values.grafana.podAnnotations | nindent 8 }}
+      {{- end }}
+      labels:
+      {{- include "sourcegraph.selectorLabels" . | nindent 8 }}
+      {{- if .Values.sourcegraph.podLabels }}
+      {{- toYaml .Values.sourcegraph.podLabels | nindent 8 }}
+      {{- end }}
+      {{- if .Values.grafana.podLabels }}
+      {{- toYaml .Values.grafana.podLabels | nindent 8 }}
+      {{- end }}
+        app: grafana
+        deploy: sourcegraph
+    spec:
+      containers:
+      - name: grafana
+        image: {{ include "sourcegraph.image" (list . "grafana") }}
+        imagePullPolicy: {{ .Values.sourcegraph.image.pullPolicy }}
+        {{- with .Values.grafana.args }}
+        args:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        terminationMessagePolicy: FallbackToLogsOnError
+        env:
+        {{- range $name, $item := .Values.grafana.env}}
+        - name: {{ $name }}
+          {{- $item | toYaml | nindent 10 }}
+        {{- end }}
+        ports:
+        - containerPort: 3370
+          name: http
+        volumeMounts:
+        - mountPath: /var/lib/grafana
+          name: grafana-data
+        - mountPath: /sg_config_grafana/provisioning/datasources
+          name: config
+        # Grafana is relied upon to send alerts to site admins when something is wrong with
+        # Sourcegraph, thus its memory requests and limits are the same to guarantee it has enough
+        # memory to perform its job reliably and prevent conflicts with other pods on the same
+        # host node.
+        {{- if .Values.grafana.extraVolumeMounts }}
+        {{- toYaml .Values.grafana.extraVolumeMounts | nindent 8 }}
+        {{- end }}
+        {{- if not .Values.sourcegraph.localDevMode }}
+        resources:
+          {{- toYaml .Values.grafana.resources | nindent 10 }}
+        {{- end }}
+        securityContext:
+          {{- toYaml .Values.grafana.containerSecurityContext | nindent 10 }}
+      {{- include "sourcegraph.renderServiceAccountName" (list . "grafana") | trim | nindent 6 }}
+      {{- if .Values.grafana.extraContainers }}
+        {{- toYaml .Values.grafana.extraContainers | nindent 6 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.grafana.podSecurityContext | nindent 8 }}
+      {{- include "sourcegraph.nodeSelector" (list . "grafana" ) | trim | nindent 6 }}
+      {{- include "sourcegraph.affinity" (list . "grafana" ) | trim | nindent 6 }}
+      {{- include "sourcegraph.tolerations" (list . "grafana" ) | trim | nindent 6 }}
+      {{- with .Values.sourcegraph.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      volumes:
+      - name: config
+        configMap:
+          defaultMode: 0777
+          name: {{ default .Values.grafana.name .Values.grafana.existingConfig }}
+      {{- if .Values.grafana.extraVolumes }}
+      {{- toYaml .Values.grafana.extraVolumes | nindent 6 }}
+      {{- end }}
+  volumeClaimTemplates:
+  - metadata:
+      name: grafana-data
+    spec:
+      accessModes: [ "ReadWriteOnce"]
+      resources:
+        requests:
+          storage: {{ .Values.grafana.storageSize }}
+      storageClassName: {{ .Values.storageClass.name }}
+{{- end }}

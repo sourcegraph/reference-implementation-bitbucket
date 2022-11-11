@@ -1,0 +1,38 @@
+{{- if .Values.jaeger.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+  {{- if .Values.jaeger.collector.serviceAnnotations }}
+  {{- toYaml .Values.jaeger.collector.serviceAnnotations | nindent 4 }}
+  {{- end }}
+  labels:
+    deploy: sourcegraph
+    app.kubernetes.io/component: all-in-one
+    app: jaeger
+    app.kubernetes.io/name: jaeger
+    {{- if .Values.jaeger.collector.serviceLabels }}
+      {{- toYaml .Values.jaeger.collector.serviceLabels | nindent 4 }}
+    {{- end }}
+  name: {{ default "jaeger-collector" .Values.jaeger.collector.name }}
+spec:
+  ports:
+  - name: jaeger-collector-tchannel
+    port: 14267
+    protocol: TCP
+    targetPort: 14267
+  - name: jaeger-collector-http
+    port: 14268
+    protocol: TCP
+    targetPort: 14268
+  - name: jaeger-collector-grpc
+    port: 14250
+    protocol: TCP
+    targetPort: 14250
+  selector:
+    {{- include "sourcegraph.jaeger.selectorLabels" . | nindent 4 }}
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: all-in-one
+    app: jaeger
+  type: {{ .Values.jaeger.collector.serviceType | default "ClusterIP" }}
+{{- end }}

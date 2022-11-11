@@ -1,0 +1,28 @@
+{{- if .Values.storageClass.create }}
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name:  {{ .Values.storageClass.name }}
+  labels:
+    {{- include "sourcegraph.labels" . | nindent 4 }}
+    deploy: sourcegraph-storage
+  {{- if .Values.storageClass.annotations}}
+  annotations:
+    {{- toYaml .Values.storageClass.annotations | nindent 4 }}
+  {{- end }}
+provisioner: {{ .Values.storageClass.provisioner }}
+parameters:
+  {{- with .Values.storageClass.type }}
+  type: {{ . }}
+  {{- end }}
+  {{- if .Values.storageClass.parameters}}
+  {{- toYaml .Values.storageClass.parameters | nindent 2 }}
+  {{- end }}
+allowVolumeExpansion: {{ default true .Values.storageClass.allowVolumeExpansion }}
+reclaimPolicy: {{ default "Retain" .Values.storageClass.reclaimPolicy }}
+volumeBindingMode: {{ default "Immediate" .Values.storageClass.volumeBindingMode }}
+{{- if .Values.storageClass.allowedTopologies }}
+allowedTopologies:
+  {{- toYaml .Values.storageClass.allowedTopologies | nindent 2 }}
+{{- end }}
+{{- end -}}

@@ -1,0 +1,7 @@
+apiVersion: v2
+appVersion: 4.1.3
+description: Chart for installing Sourcegraph
+icon: https://sourcegraph.com/favicon.ico
+name: sourcegraph
+type: application
+version: 4.1.3

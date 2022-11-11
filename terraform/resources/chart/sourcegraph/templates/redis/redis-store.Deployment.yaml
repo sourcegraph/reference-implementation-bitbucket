@@ -1,0 +1,121 @@
+{{- if .Values.redisStore.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    description: Redis for storing semi-persistent data like user sessions.
+  labels:
+    {{- include "sourcegraph.labels" . | nindent 4 }}
+    {{- if .Values.redisStore.labels }}
+      {{- toYaml .Values.redisStore.labels | nindent 4 }}
+    {{- end }}
+    deploy: sourcegraph
+    app.kubernetes.io/component: redis
+  name: {{ .Values.redisStore.name }}
+spec:
+  minReadySeconds: 10
+  replicas: 1
+  revisionHistoryLimit: {{ .Values.sourcegraph.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      {{- include "sourcegraph.selectorLabels" . | nindent 6 }}
+      app: redis-store
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: redis-store
+      {{- if .Values.sourcegraph.podAnnotations }}
+      {{- toYaml .Values.sourcegraph.podAnnotations | nindent 8 }}
+      {{- end }}
+      {{- if .Values.redisStore.podAnnotations }}
+      {{- toYaml .Values.redisStore.podAnnotations | nindent 8 }}
+      {{- end }}
+      labels:
+      {{- include "sourcegraph.selectorLabels" . | nindent 8 }}
+      {{- if .Values.sourcegraph.podLabels }}
+      {{- toYaml .Values.sourcegraph.podLabels | nindent 8 }}
+      {{- end }}
+      {{- if .Values.redisStore.podLabels }}
+      {{- toYaml .Values.redisStore.podLabels | nindent 8 }}
+      {{- end }}
+        deploy: sourcegraph
+        app: redis-store
+    spec:
+      containers:
+      - name: redis-store
+        image: {{ include "sourcegraph.image" (list . "redisStore") }}
+        imagePullPolicy: {{ .Values.sourcegraph.image.pullPolicy }}
+        {{- with .Values.redisStore.args }}
+        args:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        terminationMessagePolicy: FallbackToLogsOnError
+        env:
+        {{- range $name, $item := .Values.redisStore.env}}
+        - name: {{ $name }}
+          {{- $item | toYaml | nindent 10 }}
+        {{- end }}
+        livenessProbe:
+          initialDelaySeconds: 30
+          tcpSocket:
+            port: redis
+        ports:
+        - containerPort: 6379
+          name: redis
+        readinessProbe:
+          initialDelaySeconds: 5
+          tcpSocket:
+            port: redis
+        {{- if not .Values.sourcegraph.localDevMode }}
+        resources:
+          {{- toYaml .Values.redisStore.resources | nindent 10 }}
+        {{- end }}
+        securityContext:
+        {{- toYaml .Values.redisStore.containerSecurityContext | nindent 10 }}
+        volumeMounts:
+        - mountPath: /redis-data
+          name: redis-data
+        {{- if .Values.redisStore.extraVolumeMounts }}
+        {{- toYaml .Values.redisStore.extraVolumeMounts | nindent 8 }}
+        {{- end }}
+      - name: redis-exporter
+        image: {{ include "sourcegraph.image" (list . "redisExporter") }}
+        imagePullPolicy: {{ .Values.sourcegraph.image.pullPolicy }}
+        terminationMessagePolicy: FallbackToLogsOnError
+        env:
+        {{- range $name, $item := .Values.redisExporter.env}}
+        - name: {{ $name }}
+          {{- $item | toYaml | nindent 10 }}
+        {{- end }}
+        ports:
+        - containerPort: 9121
+          name: redisexp
+        {{- if not .Values.sourcegraph.localDevMode }}
+        resources:
+          {{- toYaml .Values.redisExporter.resources | nindent 10 }}
+        {{- end }}
+        securityContext:
+          {{- toYaml .Values.redisExporter.containerSecurityContext | nindent 10 }}
+      {{- if .Values.redisStore.extraContainers }}
+        {{- toYaml .Values.redisStore.extraContainers | nindent 6 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.redisStore.podSecurityContext | nindent 8 }}
+      {{- include "sourcegraph.nodeSelector" (list . "redisStore" ) | trim | nindent 6 }}
+      {{- include "sourcegraph.affinity" (list . "redisStore" ) | trim | nindent 6 }}
+      {{- include "sourcegraph.tolerations" (list . "redisStore" ) | trim | nindent 6 }}
+      {{- with .Values.sourcegraph.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- include "sourcegraph.renderServiceAccountName" (list . "redisStore") | trim | nindent 6 }}
+      volumes:
+      - name: redis-data
+        persistentVolumeClaim:
+          claimName: redis-store
+      {{- if .Values.redisStore.extraVolumes }}
+      {{- toYaml .Values.redisStore.extraVolumes | nindent 6 }}
+      {{- end }}
+{{- end }}

@@ -1,0 +1,26 @@
+{{- if .Values.grafana.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  {{- if .Values.grafana.serviceAnnotations }}
+  annotations:
+  {{- toYaml .Values.grafana.serviceAnnotations | nindent 4 }}
+  {{- end }}
+  labels:
+    app: grafana
+    deploy: sourcegraph
+    app.kubernetes.io/component: grafana
+    {{- if .Values.grafana.serviceLabels }}
+      {{- toYaml .Values.grafana.serviceLabels | nindent 4 }}
+    {{- end }}
+  name: grafana
+spec:
+  ports:
+  - name: http
+    port: 30070
+    targetPort: http
+  selector:
+    {{- include "sourcegraph.selectorLabels" . | nindent 4 }}
+    app: grafana
+  type: {{ .Values.grafana.serviceType | default "ClusterIP" }}
+{{- end }}

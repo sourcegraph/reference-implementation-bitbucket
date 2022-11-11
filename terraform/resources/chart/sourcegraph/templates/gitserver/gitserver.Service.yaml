@@ -1,0 +1,31 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    description: Headless service that provides a stable network identity for the
+      gitserver stateful set.
+    prometheus.io/port: "6060"
+    sourcegraph.prometheus/scrape: "true"
+    {{- if .Values.gitserver.serviceAnnotations }}
+    {{- toYaml .Values.gitserver.serviceAnnotations | nindent 4 }}
+    {{- end }}
+  labels:
+    deploy: sourcegraph
+    app.kubernetes.io/component: gitserver
+    type: gitserver
+    app: gitserver
+    {{- if .Values.gitserver.serviceLabels }}
+      {{- toYaml .Values.gitserver.serviceLabels | nindent 4 }}
+    {{- end }}
+  name: gitserver
+spec:
+  clusterIP: None
+  ports:
+  - name: unused
+    port: 10811
+    targetPort: 10811
+  selector:
+    {{- include "sourcegraph.selectorLabels" . | nindent 4 }}
+    app: gitserver
+    type: gitserver
+  type: {{ .Values.gitserver.serviceType | default "ClusterIP" }}

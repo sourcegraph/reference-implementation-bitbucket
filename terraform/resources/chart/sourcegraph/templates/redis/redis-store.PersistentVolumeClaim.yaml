@@ -1,0 +1,19 @@
+{{- if .Values.redisStore.enabled -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    deploy: sourcegraph
+    app.kubernetes.io/component: redis
+  name: redis-store
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.redisStore.storageSize }}
+  storageClassName: {{ .Values.storageClass.name }}
+  {{- if .Values.redisStore.volumeName }}
+  volumeName: {{ .Values.redisStore.volumeName }}
+  {{- end }}
+{{- end }}

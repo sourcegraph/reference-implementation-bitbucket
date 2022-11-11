@@ -1,0 +1,125 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    description: Handles conversion of uploaded precise code intelligence bundles.
+  labels:
+    {{- include "sourcegraph.labels" . | nindent 4 }}
+    {{- if .Values.preciseCodeIntel.labels }}
+      {{- toYaml .Values.preciseCodeIntel.labels | nindent 4 }}
+    {{- end }}
+    deploy: sourcegraph
+    app.kubernetes.io/component: precise-code-intel
+  name: {{ .Values.preciseCodeIntel.name }}
+spec:
+  minReadySeconds: 10
+  replicas: {{ .Values.preciseCodeIntel.replicaCount }}
+  revisionHistoryLimit: {{ .Values.sourcegraph.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      {{- include "sourcegraph.selectorLabels" . | nindent 6 }}
+      app: precise-code-intel-worker
+  strategy:
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 1
+    type: RollingUpdate
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: precise-code-intel-worker
+        checksum/minio.secret: {{ include (print $.Template.BasePath "/minio/minio.Secret.yaml") . | sha256sum }}
+      {{- if .Values.sourcegraph.podAnnotations }}
+      {{- toYaml .Values.sourcegraph.podAnnotations | nindent 8 }}
+      {{- end }}
+      {{- if .Values.preciseCodeIntel.podAnnotations }}
+      {{- toYaml .Values.preciseCodeIntel.podAnnotations | nindent 8 }}
+      {{- end }}
+      labels:
+      {{- include "sourcegraph.selectorLabels" . | nindent 8 }}
+      {{- if .Values.sourcegraph.podLabels }}
+      {{- toYaml .Values.sourcegraph.podLabels | nindent 8 }}
+      {{- end }}
+      {{- if .Values.preciseCodeIntel.podLabels }}
+      {{- toYaml .Values.preciseCodeIntel.podLabels | nindent 8 }}
+      {{- end }}
+        deploy: sourcegraph
+        app: precise-code-intel-worker
+    spec:
+      containers:
+      - name: precise-code-intel-worker
+        env:
+        {{- range $name, $item := .Values.preciseCodeIntel.env}}
+        - name: {{ $name }}
+          {{- $item | toYaml | nindent 10 }}
+        {{- end }}
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        {{- if .Values.minio.enabled }}
+        - name: PRECISE_CODE_INTEL_UPLOAD_AWS_ACCESS_KEY_ID
+          valueFrom:
+            secretKeyRef:
+              key: user
+              name: {{ default "minio-auth" .Values.minio.auth.existingSecret }}
+        - name: PRECISE_CODE_INTEL_UPLOAD_AWS_SECRET_ACCESS_KEY
+          valueFrom:
+            secretKeyRef:
+              key: password
+              name: {{ default "minio-auth" .Values.minio.auth.existingSecret }}
+        {{- end }}
+        {{- include "sourcegraph.openTelemetryEnv" . | nindent 8 }}
+        image: {{ include "sourcegraph.image" (list . "preciseCodeIntel") }}
+        imagePullPolicy: {{ .Values.sourcegraph.image.pullPolicy }}
+        {{- with .Values.preciseCodeIntel.args }}
+        args:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        terminationMessagePolicy: FallbackToLogsOnError
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: debug
+            scheme: HTTP
+          initialDelaySeconds: 60
+          timeoutSeconds: 5
+        readinessProbe:
+          httpGet:
+            path: /ready
+            port: debug
+            scheme: HTTP
+          periodSeconds: 5
+          timeoutSeconds: 5
+        ports:
+        - containerPort: 3188
+          name: http
+        - containerPort: 6060
+          name: debug
+        {{- if not .Values.sourcegraph.localDevMode }}
+        resources:
+          {{- toYaml .Values.preciseCodeIntel.resources | nindent 10 }}
+        {{- end }}
+        securityContext:
+          {{- toYaml .Values.preciseCodeIntel.containerSecurityContext | nindent 10 }}
+        volumeMounts:
+        {{- if .Values.preciseCodeIntel.extraVolumeMounts }}
+        {{- toYaml .Values.preciseCodeIntel.extraVolumeMounts | nindent 8 }}
+        {{- end }}
+      {{- if .Values.preciseCodeIntel.extraContainers }}
+        {{- toYaml .Values.preciseCodeIntel.extraContainers | nindent 6 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.preciseCodeIntel.podSecurityContext | nindent 8 }}
+      {{- include "sourcegraph.nodeSelector" (list . "preciseCodeIntel" ) | trim | nindent 6 }}
+      {{- include "sourcegraph.affinity" (list . "preciseCodeIntel" ) | trim | nindent 6 }}
+      {{- include "sourcegraph.tolerations" (list . "preciseCodeIntel" ) | trim | nindent 6 }}
+      {{- with .Values.sourcegraph.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- include "sourcegraph.renderServiceAccountName" (list . "preciseCodeIntel") | trim | nindent 6 }}
+      volumes:
+      {{- if .Values.preciseCodeIntel.extraVolumes }}
+      {{- toYaml .Values.preciseCodeIntel.extraVolumes | nindent 6 }}
+      {{- end }}

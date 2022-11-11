@@ -1,0 +1,19 @@
+{{- if .Values.codeIntelDB.enabled -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app.kubernetes.io/component: codeintel-db
+    deploy: sourcegraph
+  name: {{ default "codeintel-db" .Values.codeIntelDB.name }}
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.codeIntelDB.storageSize }}
+  storageClassName: {{ .Values.storageClass.name }}
+  {{- if .Values.codeIntelDB.volumeName }}
+  volumeName: {{ .Values.codeIntelDB.volumeName }}
+  {{- end }}
+{{- end }}

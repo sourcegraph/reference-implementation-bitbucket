@@ -1,0 +1,18 @@
+{{- if and .Values.pgsql.enabled (and .Values.pgsql.existingConfig .Values.pgsql.additionalConfig) -}}
+{{- fail "You can only define one of 'pgsql.existingConfig' and 'pgsql.additionalConfig' at a time" }}
+{{- end }}
+{{- if and .Values.pgsql.enabled (not .Values.pgsql.existingConfig) -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  annotations:
+    description: Configuration for PostgreSQL
+  labels:
+    deploy: sourcegraph
+    app.kubernetes.io/component: pgsql
+  name: {{ .Values.pgsql.name }}-conf
+data:
+  postgresql.conf: |
+    {{- .Files.Get "files/pgsql/conf/postgresql.conf" | nindent 4 }}
+    {{- tpl .Values.pgsql.additionalConfig . | nindent 4 | trim }}
+{{- end }}
