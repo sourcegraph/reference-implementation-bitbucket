@@ -1,0 +1,18 @@
+{{- if and .Values.codeIntelDB.enabled (and .Values.codeIntelDB.existingConfig .Values.codeIntelDB.additionalConfig) -}}
+{{- fail "You can only define one of 'codeIntelDB.existingConfig' and 'codeIntelDB.additionalConfig' at a time" }}
+{{- end }}
+{{- if and .Values.codeIntelDB.enabled (not .Values.codeIntelDB.existingConfig) -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  annotations:
+    description: Configuration for PostgreSQL
+  labels:
+    app.kubernetes.io/component: codeintel-db
+    deploy: sourcegraph
+  name: {{ .Values.codeIntelDB.name }}-conf
+data:
+  postgresql.conf: |
+    {{- .Files.Get "files/codeintel-db/conf/postgresql.conf" | nindent 4 }}
+    {{- tpl .Values.codeIntelDB.additionalConfig . | nindent 4 | trim }}
+{{- end }}

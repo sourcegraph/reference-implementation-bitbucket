@@ -1,0 +1,109 @@
+{{- if .Values.prometheus.enabled -}}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  annotations:
+    description: Collects metrics and aggregates them into graphs.
+  labels:
+    {{- include "sourcegraph.labels" . | nindent 4 }}
+    {{- if .Values.prometheus.labels }}
+      {{- toYaml .Values.prometheus.labels | nindent 4 }}
+    {{- end }}
+    deploy: sourcegraph
+    app.kubernetes.io/component: prometheus
+  name: {{ .Values.prometheus.name }}
+spec:
+  minReadySeconds: 10
+  replicas: {{ .Values.prometheus.replicaCount }}
+  revisionHistoryLimit: {{ .Values.sourcegraph.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      {{- include "sourcegraph.selectorLabels" . | nindent 6 }}
+      app: prometheus
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: prometheus
+      {{- if .Values.sourcegraph.podAnnotations }}
+      {{- toYaml .Values.sourcegraph.podAnnotations | nindent 8 }}
+      {{- end }}
+      {{- if .Values.prometheus.podAnnotations }}
+      {{- toYaml .Values.prometheus.podAnnotations | nindent 8 }}
+      {{- end }}
+      labels:
+      {{- include "sourcegraph.selectorLabels" . | nindent 8 }}
+      {{- if .Values.sourcegraph.podLabels }}
+      {{- toYaml .Values.sourcegraph.podLabels | nindent 8 }}
+      {{- end }}
+      {{- if .Values.prometheus.podLabels }}
+      {{- toYaml .Values.prometheus.podLabels | nindent 8 }}
+      {{- end }}
+        deploy: sourcegraph
+        app: prometheus
+    spec:
+      containers:
+      - name: prometheus
+        image: {{ include "sourcegraph.image" (list . "prometheus") }}
+        imagePullPolicy: {{ .Values.sourcegraph.image.pullPolicy }}
+        {{- with .Values.prometheus.args }}
+        args:
+          {{- toYaml . | nindent 8 }}
+        {{- end }}
+        terminationMessagePolicy: FallbackToLogsOnError
+        env:
+        {{- range $name, $item := .Values.prometheus.env}}
+        - name: {{ $name }}
+          {{- $item | toYaml | nindent 10 }}
+        {{- end }}
+        readinessProbe:
+          httpGet:
+            path: /-/ready
+            port: 9090
+          timeoutSeconds: 3
+          failureThreshold: 120
+          periodSeconds: 5
+        ports:
+        - containerPort: 9090
+          name: http
+        volumeMounts:
+        - mountPath: /prometheus
+          name: data
+        - mountPath: /sg_prometheus_add_ons
+          name: config
+        {{- if .Values.prometheus.extraVolumeMounts }}
+        {{- toYaml .Values.prometheus.extraVolumeMounts | nindent 8 }}
+        {{- end }}
+        {{- if not .Values.sourcegraph.localDevMode }}
+        resources:
+          {{- toYaml .Values.prometheus.resources | nindent 10 }}
+        {{- end }}
+        securityContext:
+          {{- toYaml .Values.prometheus.containerSecurityContext | nindent 10 }}
+      terminationGracePeriodSeconds: 120
+      {{- if .Values.prometheus.extraContainers }}
+        {{- toYaml .Values.prometheus.extraContainers | nindent 6 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.prometheus.podSecurityContext | nindent 8 }}
+      {{- include "sourcegraph.nodeSelector" (list . "prometheus" ) | trim | nindent 6 }}
+      {{- include "sourcegraph.affinity" (list . "prometheus" ) | trim | nindent 6 }}
+      {{- include "sourcegraph.tolerations" (list . "prometheus" ) | trim | nindent 6 }}
+      {{- with .Values.sourcegraph.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- include "sourcegraph.renderServiceAccountName" (list . "prometheus") | trim | nindent 6 }}
+      volumes:
+      - name: data
+        persistentVolumeClaim:
+          claimName: prometheus
+      - configMap:
+          defaultMode: 0777
+          name: {{ default .Values.prometheus.name .Values.prometheus.existingConfig }}
+        name: config
+      {{- if .Values.prometheus.extraVolumes }}
+      {{- toYaml .Values.prometheus.extraVolumes | nindent 6 }}
+      {{- end }}
+{{- end }}

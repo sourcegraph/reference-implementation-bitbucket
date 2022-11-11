@@ -1,0 +1,19 @@
+{{- if .Values.pgsql.enabled -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    deploy: sourcegraph
+    app.kubernetes.io/component: pgsql
+  name: pgsql
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.pgsql.storageSize }}
+  storageClassName: {{ .Values.storageClass.name }}
+  {{- if .Values.pgsql.volumeName }}
+  volumeName: {{ .Values.pgsql.volumeName }}
+  {{- end }}
+{{- end }}

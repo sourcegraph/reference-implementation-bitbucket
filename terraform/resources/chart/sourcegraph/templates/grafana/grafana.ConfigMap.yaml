@@ -1,0 +1,24 @@
+{{- if and .Values.grafana.enabled (not .Values.grafana.existingConfig) -}}
+apiVersion: v1
+data:
+  datasources.yml: |
+    apiVersion: 1
+
+    datasources:
+      - name: Prometheus
+        type: prometheus
+        access: proxy
+        url: http://prometheus:30090
+        isDefault: true
+        editable: false
+      - name: Jaeger
+        type: Jaeger
+        access: proxy
+        url: http://{{ default "jaeger-query" .Values.jaeger.query.name }}:16686/-/debug/jaeger
+kind: ConfigMap
+metadata:
+  labels:
+    deploy: sourcegraph
+    app.kubernetes.io/component: grafana
+  name: {{ .Values.grafana.name }}
+{{- end }}

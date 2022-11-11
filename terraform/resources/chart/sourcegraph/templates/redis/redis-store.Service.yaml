@@ -1,0 +1,28 @@
+{{- if .Values.redisStore.enabled -}}
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    prometheus.io/port: "9121"
+    sourcegraph.prometheus/scrape: "true"
+    {{- if .Values.redisStore.serviceAnnotations }}
+    {{- toYaml .Values.redisStore.serviceAnnotations | nindent 4 }}
+    {{- end }}
+  labels:
+    app: redis-store
+    deploy: sourcegraph
+    app.kubernetes.io/component: redis
+    {{- if .Values.redisStore.serviceLabels }}
+      {{- toYaml .Values.redisStore.serviceLabels | nindent 4 }}
+    {{- end }}
+  name: redis-store
+spec:
+  ports:
+  - name: redis
+    port: 6379
+    targetPort: redis
+  selector:
+    {{- include "sourcegraph.selectorLabels" . | nindent 4 }}
+    app: redis-store
+  type: {{ .Values.redisStore.serviceType | default "ClusterIP" }}
+{{- end }}

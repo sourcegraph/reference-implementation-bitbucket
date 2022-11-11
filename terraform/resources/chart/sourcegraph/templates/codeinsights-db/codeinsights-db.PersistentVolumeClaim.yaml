@@ -1,0 +1,19 @@
+{{- if .Values.codeInsightsDB.enabled -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    app.kubernetes.io/component: codeinsights-db
+    deploy: sourcegraph
+  name: codeinsights-db
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.codeInsightsDB.storageSize }}
+  storageClassName: {{ .Values.storageClass.name }}
+  {{- if .Values.codeInsightsDB.volumeName }}
+  volumeName: {{ .Values.codeInsightsDB.volumeName }}
+  {{- end }}
+{{- end }}

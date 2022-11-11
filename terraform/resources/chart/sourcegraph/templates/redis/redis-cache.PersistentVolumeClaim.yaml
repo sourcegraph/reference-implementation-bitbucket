@@ -1,0 +1,19 @@
+{{- if .Values.redisCache.enabled -}}
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  labels:
+    deploy: sourcegraph
+    app.kubernetes.io/component: redis
+  name: redis-cache
+spec:
+  accessModes:
+  - ReadWriteOnce
+  resources:
+    requests:
+      storage: {{ .Values.redisCache.storageSize }}
+  storageClassName: {{ .Values.storageClass.name }}
+  {{- if .Values.redisCache.volumeName }}
+  volumeName: {{ .Values.redisCache.volumeName }}
+  {{- end }}
+{{- end }}

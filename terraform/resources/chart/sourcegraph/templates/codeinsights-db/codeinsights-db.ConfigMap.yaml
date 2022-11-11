@@ -1,0 +1,18 @@
+{{- if and .Values.codeInsightsDB.enabled (and .Values.codeInsightsDB.existingConfig .Values.codeInsightsDB.additionalConfig) -}}
+{{- fail "You can only define one of 'codeInsightsDB.existingConfig' and 'codeInsightsDB.additionalConfig' at a time" }}
+{{- end }}
+{{- if and .Values.codeInsightsDB.enabled (not .Values.codeInsightsDB.existingConfig) -}}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  annotations:
+    description: Configuration for Code Insights
+  labels:
+    app.kubernetes.io/component: codeinsights-db
+    deploy: sourcegraph
+  name: {{ .Values.codeInsightsDB.name }}-conf
+data:
+  postgresql.conf: |
+    {{- .Files.Get "files/codeinsights-db/conf/postgresql.conf" | nindent 4 }}
+    {{- tpl .Values.codeInsightsDB.additionalConfig . | nindent 4 | trim }}
+{{- end }}

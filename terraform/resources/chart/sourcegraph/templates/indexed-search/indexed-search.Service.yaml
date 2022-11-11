@@ -1,0 +1,27 @@
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    description: Headless service that provides a stable network identity for the
+      indexed-search stateful set.
+    sourcegraph.prometheus/scrape: "true"
+    prometheus.io/port: "6070"
+    {{- if .Values.indexedSearch.serviceAnnotations }}
+    {{- toYaml .Values.indexedSearch.serviceAnnotations | nindent 4 }}
+    {{- end }}
+  labels:
+    app: indexed-search
+    deploy: sourcegraph
+    app.kubernetes.io/component: indexed-search
+    {{- if .Values.indexedSearch.serviceLabels }}
+      {{- toYaml .Values.indexedSearch.serviceLabels | nindent 4 }}
+    {{- end }}
+  name: indexed-search
+spec:
+  clusterIP: None
+  ports:
+  - port: 6070
+  selector:
+    {{- include "sourcegraph.selectorLabels" . | nindent 4 }}
+    app: indexed-search
+  type: {{ .Values.indexedSearch.serviceType | default "ClusterIP" }}

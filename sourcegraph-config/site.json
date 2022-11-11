@@ -1,0 +1,48 @@
+/*
+
+See the notes below and documentation at
+https://docs.sourcegraph.com/admin/config/site_config
+for more information. This should go into your site config
+after spinning up your Sourcegraph instance.
+
+*/
+
+{
+    // The externally accessible URL for Sourcegraph (i.e., what you type into your browser)
+    // This is required to be configured for Sourcegraph to work correctly.
+
+    "externalURL": "https://sourcegraph.example.com",
+
+    // The authentication provider to use for identifying and signing in users.
+    // Only one entry is supported.
+    //
+    // The builtin auth provider with signup disallowed (shown below) means that
+    // after the initial site admin signs in, all other users must be invited.
+    //
+    // Other providers are documented at https://docs.sourcegraph.com/admin/auth.
+
+    "auth.providers": [
+        {
+        "type": "builtin"
+        },
+        {
+        "allowSignup": true,
+        "clientID": "oauthClientId",
+        "clientSecret": "REDACTED",
+        "displayName": "GitHub",
+        "type": "github",
+        "url": "https://github.com/"
+        }
+    ],
+    "search.index.enabled": true,
+
+    "email.address": "notifications@example.com",
+    "email.smtp": {
+        "authentication": "PLAIN",
+        "username": "user@example.com",
+        "password": "appPassword",
+        "host": "smtp-relay.youremailrelay.com",
+        "port": 587,
+        "domain": "example.com"
+    },
+}

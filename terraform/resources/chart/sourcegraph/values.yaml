@@ -1,0 +1,1226 @@
+# To customize these values, use an override file:
+# https://sourcegraph.com/github.com/sourcegraph/deploy-sourcegraph-helm/-/blob/charts/sourcegraph/README.md#customizations
+
+### Common Configuration ###
+sourcegraph:
+  image:
+    # -- Global docker image tag
+    defaultTag: '{{ .Chart.AppVersion }}'
+    # -- Global docker image pull policy
+    pullPolicy: IfNotPresent
+    # -- Global docker image registry or prefix
+    repository: index.docker.io/sourcegraph
+    # -- When set to true, sourcegraph.image.defaultTag is used as the default defaultTag for all services, instead of service-specific default defaultTags
+    useGlobalTagAsDefault: false
+  # -- Mount named secrets containing docker credentials
+  imagePullSecrets: []
+  # -- Add extra labels to all resources
+  labels: {}
+  # -- When true, remove all resource stanzas, allowing the scheduler to best-fit pods. Intended for local development with limited resources.
+  localDevMode: false
+  # -- Set a custom name for the app.kubernetes.io/name annotation
+  nameOverride: ""
+  # -- Global Affinity,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/scheduling-eviction/assign-pod-node/#affinity-and-anti-affinity)
+  affinity: {}
+  # -- Global NodeSelector,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/assign-pod-node/#nodeselector)
+  nodeSelector: {}
+  # -- Global Tolerations,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/scheduling-eviction/taint-and-toleration/)
+  tolerations: []
+  # -- Add extra annotations to attach to all pods
+  podAnnotations: {}
+  # -- Add extra labels to attach to all pods
+  podLabels: {}
+  # -- Global deployment clean up policy,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/workloads/controllers/deployment/#clean-up-policy)
+  revisionHistoryLimit: 10
+  # -- Add extra labels to all services
+  serviceLabels: {}
+
+
+# Generic application configuration options, used by most applications below
+# app: # Generally matches directory name
+#   replicaCount: 1
+#
+#   image:
+#     # Application-specific default tag. Overrides the global tag. Do not modify - use tag instead
+#     defaultTag:
+#     # Override the default tag on a service-specific basis
+#     tag:
+#     # Override the default docker image name
+#     name:
+#
+#   # Add additional labels and annotations to various resources
+#   labels: {}
+#   podLabels: {}
+#   podAnnotations: {}
+#   serviceLabels: {}
+#   serviceAnnotations: {}
+#   # Provide custom environment variables
+#   env: {}
+#   # Set resource requests / limits
+#   resources: {}
+#   containerSecurityContext: {}
+#   podSecurityContext: {}
+#   # Add additional volumes and mounts to deployments
+#   extraVolumeMounts: {}
+#   extraVolumes: {}
+#   # Add sidecars
+#   extraContainers: {}
+#   # Toggle serviceAccount creation
+#   serviceAccount.create: true
+#   # Customize service account name
+#   serviceAccount.name: ""
+#   # Override service type (defaults to ClusterIP)
+#   serviceType: ""
+#   # Set disk size on PVC's for stateful deployments
+#   storageSize: ""
+#   # Optionally bind PVC's to an existing PV
+#   volumeName: ""
+#   # Use an existing configmap (specified by name) instead of creating one
+#   existingConfig: ""
+#   # Toggle deployment of applications on/off. Applies to databases and third-party applications
+#   enabled: true
+
+alpine: # Used in init containers
+  image:
+    # -- Docker image tag for the `alpine` image
+    defaultTag: 4.1.0@sha256:87fede17e58a4983283b31668f08b00b6f2d48b884392bf5a1eb19f4b41b86b0
+    # -- Docker image name for the `alpine` image
+    name: "alpine-3.14"
+  # -- Security context for the `alpine` initContainer,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 999
+    runAsGroup: 999
+    readOnlyRootFilesystem: true
+  # -- Resource requests & limits for the `alpine` initContainer,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: 10m
+      memory: 50Mi
+    requests:
+      cpu: 10m
+      memory: 50Mi
+
+cadvisor:
+  # -- Enable `cadvisor`
+  enabled: true
+  image:
+    # -- Docker image tag for the `cadvisor` image
+    defaultTag: 4.1.0@sha256:9a4a6bc61827f334263a60bfdc098573f94797862f7df044f66aeac312627a56
+    # -- Docker image name for the `cadvisor` image
+    name: "cadvisor"
+  # -- Name used by resources. Does not affect service names or PVCs.
+  name: "cadvisor"
+  podSecurityPolicy:
+    # -- Enable [PodSecurityPolicy](https://kubernetes.io/docs/concepts/policy/pod-security-policy/) for `cadvisor` pods
+    enabled: false
+  # -- Resource requests & limits for the `cadvisor` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: 300m
+      memory: 2000Mi
+    requests:
+      cpu: 150m
+      memory: 200Mi
+  serviceAccount:
+    # -- Enable creation of ServiceAccount for `cadvisor`
+    create: true
+    # -- Name of the ServiceAccount to be created or an existing ServiceAccount
+    name: cadvisor
+  # -- Security context for the `cadvisor` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    # You may set `privileged` to `false and `cadvisor` will run with reduced privileges.
+    # `cadvisor` requires root privileges in order to display provisioning metrics.
+    # These metrics provide critical information to help you scale the Sourcegraph deployment.
+    # If you would like to bring your own infrastructure monitoring & alerting solution,
+    # you may want to disable the `cadvisor` DaemonSet completely
+    # by setting `cadvisor.enabled=false` in your override file
+    # You may also run `cadvisor` with reduced privileges by setting
+    # `cadvisor.containerSecurityContext.privileged=false` in your override file
+    privileged: true
+
+codeInsightsDB:
+  # -- Enable `codeinsights-db` PostgreSQL server
+  enabled: true
+  auth:
+    # -- Name of existing secret to use for Code Insights credentials
+    # The secret must contain the keys `user`, `password`, `database`, `host` and `port`.
+    # `auth.user`, `auth.password`, etc. are ignored if this is enabled
+    existingSecret: ""
+    # -- Sets codeinsights-db database name
+    database: "postgres"
+    # -- Sets codeinsights-db host
+    host: "codeinsights-db"
+    # -- Sets codeinsights-db username
+    user: "postgres"
+    # -- Sets codeinsights-db password
+    password: "password"
+    # -- Sets codeinsights-db port
+    port: "5432"
+  # -- Environment variables for the `codeinsights-db` container
+  env: {}
+  # -- Name of existing ConfigMap for `codeinsights-db`. It must contain a `postgresql.conf` key.
+  existingConfig: "" # Name of an existing configmap
+  # -- Additional PostgreSQL configuration. This will override or extend our default configuration.
+  # Notes: This is expecting a multiline string.
+  # Learn more from our [recommended PostgreSQL configuration](https://docs.sourcegraph.com/admin/config/postgres-conf) and [PostgreSQL documentation](https://www.postgresql.org/docs/12/config-setting.html)
+  additionalConfig: ""
+  image:
+    # -- Docker image tag for the `codeinsights-db` image
+    defaultTag: 4.1.0@sha256:5b3202f1da318fbf6cc2322a4ffe39b0cd532a11f8be1a95f83b21342d2a6392
+    # -- Docker image name for the `codeinsights-db` image
+    name: "codeinsights-db"
+  # -- Security context for the `codeinsights-db` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 70
+    runAsGroup: 70
+    readOnlyRootFilesystem: true
+  init:
+    # -- Security context for the `alpine` initContainer,
+    # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+    containerSecurityContext:
+      allowPrivilegeEscalation: false
+      runAsUser: 70
+      runAsGroup: 70
+      readOnlyRootFilesystem: true
+  # -- Configuration for the `pgsql-exporter` sidecar container
+  postgresExporter: {}
+  # -- Name used by resources. Does not affect service names or PVCs.
+  name: "codeinsights-db"
+  # -- Resource requests & limits for the `codeinsights-db` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: "4"
+      memory: 2Gi
+    requests:
+      cpu: "4"
+      memory: 2Gi
+  # -- Security context for the `codeinsights-db` pod,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
+  podSecurityContext:
+    runAsUser: 70
+    fsGroup: 70
+    fsGroupChangePolicy: "OnRootMismatch"
+  serviceAccount:
+    # -- Enable creation of ServiceAccount for `codeinsights-db`
+    create: false
+    # -- Name of the ServiceAccount to be created or an existing ServiceAccount
+    name: ""
+  # -- PVC Storage Request for `codeinsights-db` data volume
+  storageSize: 200Gi
+
+codeIntelDB:
+  # -- Enable `codeintel-db` PostgreSQL server
+  enabled: true
+  auth:
+    # -- Name of existing secret to use for CodeIntel credentials
+    # The secret must contain the keys `user`, `password`, `database`, `host` and `port`.
+    # `auth.user`, `auth.password`, etc. are ignored if this is enabled
+    existingSecret: ""
+    # -- Sets codeintel-db database name
+    database: "sg"
+    # -- Sets codeintel-db host
+    host: "codeintel-db"
+    # -- Sets codeintel-db username
+    user: "sg"
+    # -- Sets codeintel-db password
+    password: "password"
+    # -- Sets codeintel-db port
+    port: "5432"
+  # -- Name of existing ConfigMap for `codeintel-db`. It must contain a `postgresql.conf` key
+  existingConfig: ""
+  # -- Additional PostgreSQL configuration. This will override or extend our default configuration.
+  # Notes: This is expecting a multiline string.
+  # Learn more from our [recommended PostgreSQL configuration](https://docs.sourcegraph.com/admin/config/postgres-conf) and [PostgreSQL documentation](https://www.postgresql.org/docs/12/config-setting.html)
+  additionalConfig: ""
+  image:
+    # -- Docker image tag for the `codeintel-db` image
+    defaultTag: 4.1.0@sha256:cc3e51e97048a32f781b50671c5b9b76d7dcf7ecc2d1aabbf4611d7e372f4db9
+    # -- Docker image name for the `codeintel-db` image
+    name: "codeintel-db"
+  # -- Security context for the `codeintel-db` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 999
+    runAsGroup: 999
+    readOnlyRootFilesystem: true
+  # -- Configuration for the `pgsql-exporter` sidecar container
+  postgresExporter: {}
+  # -- Name used by resources. Does not affect service names or PVCs.
+  name: "codeintel-db"
+  # -- Resource requests & limits for the `codeintel-db` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: "4"
+      memory: 4Gi
+    requests:
+      cpu: "4"
+      memory: 4Gi
+  # -- Security context for the `codeintel-db` pod,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
+  podSecurityContext:
+    runAsUser: 999
+    fsGroup: 999
+    fsGroupChangePolicy: "OnRootMismatch"
+  serviceAccount:
+    # -- Enable creation of ServiceAccount for `codeintel-db`
+    create: false
+    # -- Name of the ServiceAccount to be created or an existing ServiceAccount
+    name: ""
+  # -- PVC Storage Request for `codeintel-db` data volume
+  storageSize: 200Gi
+
+frontend:
+  # -- Environment variables for the `frontend` container
+  # @default -- the chart will add some default environment values
+  env:
+    DEPLOY_TYPE:
+      value: helm
+    GRAFANA_SERVER_URL:
+      value: http://grafana:30070
+    JAEGER_SERVER_URL:
+      value: http://jaeger-query:16686
+    PROMETHEUS_URL:
+      value: http://prometheus:30090
+  image:
+    # -- Docker image tag for the `frontend` image
+    defaultTag: 4.1.0@sha256:aa57f07e5d1547b49e6f37e86e9e23eae79b9abb32e06b199930f069f735512e
+    # -- Docker image name for the `frontend` image
+    name: "frontend"
+  ingress:
+    # -- Enable ingress for the Sourcegraph server
+    enabled: true
+    # -- Annotations for the Sourcegraph server ingress. For example, securing ingress with TLS provided by [cert-manager](https://cert-manager.io/docs/usage/ingress/)
+    annotations:
+      # --  [Deprecated annotation](https://kubernetes.io/docs/concepts/services-networking/ingress/#deprecated-annotation) for specifing the IngressClass in Kubernetes 1.17 and earlier.
+      # If you are using Kubernetes 1.18+, use `ingressClassName` instead and set an override value of `null` for this annotation.
+      kubernetes.io/ingress.class: nginx
+      nginx.ingress.kubernetes.io/proxy-body-size: 150m
+    # -- External hostname for the Sourcegraph server ingress (SSL)
+    host: ""
+    # -- IngressClassName for the Ingress (Available in Kubernetes 1.18+)
+    # If you set this field, set the annotation `frontend.ingress.annotations."kubernetes.io/ingress.class"` to `null`
+    ingressClassName: null
+    # -- Secret containing SSL cert
+    tlsSecret: ""
+  # -- Security context for the `frontend` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 100
+    runAsGroup: 101
+    readOnlyRootFilesystem: true
+  # -- Security context for the `frontend` pod,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
+  podSecurityContext: {}
+  # -- Enable creation of Role and RoleBinding (RBAC). Uses [view](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#user-facing-roles) ClusterRole if set to false
+  privileged: true
+  # -- Number of `frontend` pod
+  replicaCount: 2
+  # -- Name used by resources. Does not affect service names or PVCs.
+  name: "sourcegraph-frontend"
+  # -- Resource requests & limits for the `frontend` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: "2"
+      ephemeral-storage: 8Gi
+      memory: 4G
+    requests:
+      cpu: "2"
+      ephemeral-storage: 4Gi
+      memory: 2G
+  serviceAccount:
+    # -- Enable creation of ServiceAccount for `frontend`
+    create: true
+    # -- Name of the ServiceAccount to be created or an existing ServiceAccount
+    name: sourcegraph-frontend
+
+migrator:
+  # -- Enable [migrator](https://docs.sourcegraph.com/admin/how-to/manual_database_migrations) initContainer in
+  # `frontend` deployment to perform database migration
+  enabled: true
+  image:
+    # -- Docker image tag for the `migrator` image
+    defaultTag: 4.1.0@sha256:a3a7507f8fdb6e7d8cea0ca3f65747b849cba3655c60bb1a8c56c155e729408e
+    # -- Docker image name for the `migrator` image
+    name: "migrator"
+  # -- Environment variables for the `migrator` container
+  env: {}
+  # -- Resource requests & limits for the `migrator` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: 500m
+      memory: 100M
+    requests:
+      cpu: 100m
+      memory: 50M
+  # -- Security context for the `migrator` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 100
+    runAsGroup: 101
+    readOnlyRootFilesystem: true
+
+githubProxy:
+  image:
+    # -- Docker image tag for the `github-proxy` image
+    defaultTag: 4.1.0@sha256:354b05ce452a94d6283209293ccca13c03205972b5d9b705fd30c04c56e0688b
+    # -- Docker image name for the `github-proxy` image
+    name: "github-proxy"
+  # -- Security context for the `github-proxy` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 100
+    runAsGroup: 101
+    readOnlyRootFilesystem: true
+  # -- Name used by resources. Does not affect service names or PVCs.
+  name: "github-proxy"
+  # -- Security context for the `github-proxy` pod,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
+  podSecurityContext: {}
+  # -- Resource requests & limits for the `github-proxy` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: "1"
+      memory: 1G
+    requests:
+      cpu: 100m
+      memory: 250M
+  serviceAccount:
+    # -- Enable creation of ServiceAccount for `github-proxy`
+    create: false
+    # -- Name of the ServiceAccount to be created or an existing ServiceAccount
+    name: ""
+
+gitserver:
+  image:
+    # -- Docker image tag for the `gitserver` image
+    defaultTag: 4.1.0@sha256:f1d29928999e25f67ea9f97af4e8dec2b24f489fbf54a6cc41f93ea88eb0931f
+    # -- Docker image name for the `gitserver` image
+    name: "gitserver"
+  # -- Name of existing Secret that contains SSH credentials to clone repositories.
+  # It usually contains keys, such as `id_rsa` (private key) and `known_hosts`.
+  # Learn more from [documentation](https://docs.sourcegraph.com/admin/install/kubernetes/helm#using-ssh-to-clone-repositories)
+  sshSecret: ""
+  # -- Security context for the `gitserver` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 100
+    runAsGroup: 101
+    readOnlyRootFilesystem: true
+  # -- Number of `gitserver` pod
+  replicaCount: 1
+  # -- Resource requests & limits for the `gitserver` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: "4"
+      memory: 8G
+    requests:
+      cpu: "4"
+      memory: 8G
+  # -- Name used by resources. Does not affect service names or PVCs.
+  name: "gitserver"
+  # -- Security context for the `gitserver` pod,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
+  podSecurityContext:
+    runAsUser: 100
+    runAsGroup: 101
+    fsGroup: 101
+    fsGroupChangePolicy: "OnRootMismatch"
+  serviceAccount:
+    # -- Enable creation of ServiceAccount for `gitserver`
+    create: false
+    # -- Name of the ServiceAccount to be created or an existing ServiceAccount
+    name: ""
+  # -- PVC Storage Request for `gitserver` data volume
+  storageSize: 200Gi
+
+grafana:
+  # -- Enable `grafana` dashboard (recommended)
+  enabled: true
+  # -- Name of existing ConfigMap for `grafana`. It must contain a `datasources.yml` key.
+  existingConfig: "" # Name of an existing configmap
+  image:
+    # -- Docker image tag for the `grafana` image
+    defaultTag: 4.1.0@sha256:6067c5d9ff057c62c8b0622feb2562e2981616525868ab860ab2b19d4a67fe0f
+    # -- Docker image name for the `grafana` image
+    name: "grafana"
+  # -- Security context for the `grafana` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 472
+    runAsGroup: 472
+    readOnlyRootFilesystem: true
+  # -- Name used by resources. Does not affect service names or PVCs.
+  name: "grafana"
+  # -- Number of `grafana` pod
+  replicaCount: 1
+  # -- Resource requests & limits for the `grafana` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: "1"
+      memory: 512Mi
+    requests:
+      cpu: 100m
+      memory: 512Mi
+  # -- Security context for the `grafana` pod,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
+  podSecurityContext:
+    runAsUser: 472
+    runAsGroup: 472
+    fsGroup: 472
+    fsGroupChangePolicy: "OnRootMismatch"
+  serviceAccount:
+    # -- Enable creation of ServiceAccount for `grafana`
+    create: true
+    # -- Name of the ServiceAccount to be created or an existing ServiceAccount
+    name: grafana
+  # -- PVC Storage Request for `grafana` data volume
+  storageSize: 2Gi
+
+indexedSearch:
+  image:
+    # -- Docker image tag for the `zoekt-webserver` image
+    defaultTag: 4.1.0@sha256:b82f01effbe0ef407557bbe0f1c83f3bb47f7fab64584532590fae6e125c5e7f
+    # -- Docker image name for the `zoekt-webserver` image
+    name: "indexed-searcher"
+  # -- Security context for the `zoekt-webserver` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 100
+    runAsGroup: 101
+    readOnlyRootFilesystem: true
+  # -- Name used by resources. Does not affect service names or PVCs.
+  name: "indexed-search"
+  # -- Number of `indexed-search` pod
+  replicaCount: 1
+  # -- Resource requests & limits for the `zoekt-webserver` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: "2"
+      memory: 4G
+    requests:
+      cpu: 500m
+      memory: 2G
+  # -- Security context for the `indexed-search` pod,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
+  podSecurityContext:
+    fsGroup: 101
+    fsGroupChangePolicy: "OnRootMismatch"
+  serviceAccount:
+    # -- Enable creation of ServiceAccount for `indexed-search`
+    create: false
+    # -- Name of the ServiceAccount to be created or an existing ServiceAccount
+    name: ""
+  # -- PVC Storage Request for `indexed-search` data volume
+  # The size of disk to used for search indexes.
+  # This should typically be gitserver disk size multipled by the number of gitserver shards.
+  storageSize: 200Gi
+
+indexedSearchIndexer:
+  image:
+    # -- Docker image tag for the `zoekt-indexserver` image
+    defaultTag: 4.1.0@sha256:a3ff6f983b1d8db52f2767420d72af1330eaec2a7938bb1a4949bfe00739a9c2
+    # -- Docker image name for the `zoekt-indexserver` image
+    name: "search-indexer"
+  # -- Security context for the `zoekt-indexserver` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 100
+    runAsGroup: 101
+    readOnlyRootFilesystem: true
+  # -- Resource requests & limits for the `zoekt-indexserver` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  # zoekt-indexserver is CPU bound. The more CPU you allocate to it, the
+  # lower lag between a new commit and it being indexed for search.
+  resources:
+    limits:
+      cpu: "8"
+      memory: 8G
+    requests:
+      cpu: "4"
+      memory: 4G
+
+minio:
+  # -- Enable `minio` (S3 compatible storage)
+  enabled: true
+  # -- Configure credentials for the `minio` container,
+  # learn more from the [Minio documentation](https://docs.min.io/minio/baremetal/reference/minio-server/minio-server.html#root-credentials)
+  # @default -- Generate a secret with default credentials
+  auth:
+    # -- Name of existing secret to use for Minio credentials
+    # The secret must contain the keys `user` (root user access key) and `password` (root user secret key)
+    # `auth.user` and `auth.password` are ignored if this is enabled
+    existingSecret: ""
+    # -- Sets root user access key
+    user: "AKIAIOSFODNN7EXAMPLE"
+    # -- Sets root user secret key
+    password: "wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY"
+  image:
+    # -- Docker image tag for the `minio` image
+    defaultTag: 4.1.0@sha256:a8cc7269c2ffecc7c03791d3999ccc30635e5af36cc73e412bec2ac944be7006
+    # -- Docker image tag for the `minio` image
+    name: "minio"
+  # -- Security context for the `minio` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 100
+    runAsGroup: 101
+  # -- Name used by resources. Does not affect service names or PVCs.
+  name: "minio"
+  # -- Resource requests & limits for the `minio` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: "1"
+      memory: 500M
+    requests:
+      cpu: "1"
+      memory: 500M
+  # -- Security context for the `minio` pod,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
+  podSecurityContext:
+    runAsUser: 100
+    runAsGroup: 101
+    fsGroup: 101
+    fsGroupChangePolicy: "OnRootMismatch"
+  serviceAccount:
+    # -- Enable creation of ServiceAccount for `minio`
+    create: false
+    # -- Name of the ServiceAccount to be created or an existing ServiceAccount
+    name: ""
+  # -- PVC Storage Request for `minio` data volume
+  storageSize: 100Gi
+
+openTelemetry:
+  enabled: true
+  image:
+    # -- Docker image tag for the `otel-collector` image
+    defaultTag: 4.1.0@sha256:a26d16ca8e7e8dc07c1ce4e24c7ae1eb374c7510d696355d08a60e63335170ef # TODO: change once we have a versioned image with bundled configs + logging exporter
+    # -- Docker image name for the `otel-collector` image
+    name: "opentelemetry-collector"
+  gateway:
+    # -- Name used by resources. Does not affect service names or PVCs.
+    name: "otel-collector"
+    # -- Resource requests & limits for the `otel-collector` container,
+    # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+    resources:
+      limits:
+        cpu: "3"
+        memory: 3Gi
+      requests:
+        cpu: "1"
+        memory: 1Gi
+    config:
+      traces:
+        # -- Define trace processors.
+        # Read how to configure sampling in the [OpenTelemetry documentation](https://docs.sourcegraph.com/admin/observability/opentelemetry#sampling-traces)
+        processors: {}
+        # -- Define where traces should be exported to. 
+        # Read how to configure different backends in the [OpenTelemetry documentation](https://opentelemetry.io/docs/collector/configuration/#exporters)
+        exporters: {}
+        # -- Define the name of a preexisting secret containing TLS certificates for exporters, which will be mounted under "/tls".
+        # Read more about TLS configuration of exporters in the [OpenTelemetry Collector documentation](https://github.com/open-telemetry/opentelemetry-collector/blob/main/config/configtls/README.md)
+        exportersTlsSecretName: ""
+      
+  agent:
+    # -- Name used by resources. Does not affect service names or PVCs.
+    name: "otel-agent"
+    # -- Resource requests & limits for the `otel-agent` container,
+    # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+    resources:
+      limits:
+        cpu: "500m"
+        memory: 500Mi
+      requests:
+        cpu: "100m"
+        memory: 100Mi
+    
+pgsql:
+  # -- Enable `pgsql` PostgreSQL server
+  enabled: true
+  auth:
+    # -- Name of existing secret to use for Postgres credentials
+    # The secret must contain the keys `user`, `password`, `database`, `host` and `port`.
+    # `auth.user`, `auth.password`, etc. are ignored if this is enabled
+    existingSecret: ""
+    # -- Sets postgres database name
+    database: "sg"
+    # -- Sets postgres host
+    host: "pgsql"
+    # -- Sets postgres username
+    user: "sg"
+    # -- Sets postgres password
+    password: "password"
+    # -- Sets postgres port
+    port: "5432"
+  # -- Name of existing ConfigMap for `pgsql`. It must contain a `postgresql.conf` key
+  existingConfig: "" # Name of an existing configmap
+  # -- Additional PostgreSQL configuration. This will override or extend our default configuration.
+  # Notes: This is expecting a multiline string.
+  # Learn more from our [recommended PostgreSQL configuration](https://docs.sourcegraph.com/admin/config/postgres-conf) and [PostgreSQL documentation](https://www.postgresql.org/docs/12/config-setting.html)
+  additionalConfig: ""
+  image:
+    # -- Docker image tag for the `pgsql` image
+    defaultTag: 4.1.0@sha256:a6544b8313d5acad0243dacbe6947de52b4239c03bf5e5c67538376fc52bf3eb
+    # -- Docker image name for the `pgsql` image
+    name: "postgres-12-alpine"
+  # -- Security context for the `pgsql` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 999
+    runAsGroup: 999
+    readOnlyRootFilesystem: true
+  # -- Configuration for the `pgsql-exporter` sidecar container
+  postgresExporter: {}
+  # -- Name used by resources. Does not affect service names or PVCs.
+  name: "pgsql"
+  # -- Resource requests & limits for the `pgsql` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: "4"
+      memory: 4Gi
+    requests:
+      cpu: "4"
+      memory: 4Gi
+  # -- Security context for the `pgsql` pod,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
+  podSecurityContext:
+    # Required to prevent escalations to root.
+    runAsUser: 999
+    runAsGroup: 999
+    fsGroup: 999
+    fsGroupChangePolicy: "OnRootMismatch"
+  serviceAccount:
+    # -- Enable creation of ServiceAccount for `pgsql`
+    create: false
+    # -- Name of the ServiceAccount to be created or an existing ServiceAccount
+    name: ""
+  # -- PVC Storage Request for `pgsql` data volume
+  storageSize: 200Gi
+
+postgresExporter:
+  image:
+    # -- Docker image tag for the `pgsql-exporter` image
+    defaultTag: 4.1.0@sha256:8e38fc0311b472a24aa0e9e05c4401d30cbd1d3f9490c043c3d031772428ab2a
+    # -- Docker image name for the `pgsql-exporter` image
+    name: "postgres_exporter"
+  # -- Resource requests & limits for the `pgsql-exporter` sidecar container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: 10m
+      memory: 50Mi
+    requests:
+      cpu: 10m
+      memory: 50Mi
+
+preciseCodeIntel:
+  # -- Environment variables for the `precise-code-intel-worker` container
+  env:
+    NUM_WORKERS:
+      value: "4"
+  image:
+    # -- Docker image tag for the `precise-code-intel-worker` image
+    defaultTag: 4.1.0@sha256:6224fd16cf640bf0c5d74dde07a64558b80eeb6ecf062f7187937de8fb22f591
+    # -- Docker image name for the `precise-code-intel-worker` image
+    name: "precise-code-intel-worker"
+  # -- Security context for the `precise-code-intel-worker` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 100
+    runAsGroup: 101
+    readOnlyRootFilesystem: true
+  # -- Name used by resources. Does not affect service names or PVCs.
+  name: "precise-code-intel-worker"
+  # -- Security context for the `precise-code-intel-worker` pod,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
+  podSecurityContext: {}
+  # -- Number of `precise-code-intel-worker` pod
+  replicaCount: 2
+  # -- Resource requests & limits for the `precise-code-intel-worker` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: "2"
+      memory: 4G
+    requests:
+      cpu: 500m
+      memory: 2G
+  serviceAccount:
+    # -- Enable creation of ServiceAccount for `precise-code-intel-worker`
+    create: false
+    # -- Name of the ServiceAccount to be created or an existing ServiceAccount
+    name: ""
+
+prometheus:
+  # -- Enable `prometheus` (recommended)
+  enabled: true
+  # -- Name of existing ConfigMap for `pgsql`. It must contain a `prometheus.yml` key
+  existingConfig: "" # Name of an existing configmap
+  image:
+    # -- Docker image tag for the `prometheus` image
+    defaultTag: 4.1.0@sha256:30c587a3fcf1beb80f18ebdd56e7f644d6df8455a6050ae61d7b3916bec306b2
+    # -- Docker image name for the `prometheus` image
+    name: "prometheus"
+  # -- Security context for the `prometheus` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 100
+    runAsGroup: 100
+    # Read-only filesystem not supported for the prometheus container,
+    # see [sourcegraph/issues/34012](https://github.com/sourcegraph/sourcegraph/issues/34012) for more information
+    readOnlyRootFilesystem: false
+  # -- Name used by resources. Does not affect service names or PVCs.
+  name: "prometheus"
+  # -- Enable RBAC for `prometheus`
+  privileged: true
+  # -- Number of `prometheus` pod
+  replicaCount: 1
+  # -- Resource requests & limits for the `prometheus` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  # Prometheus is relied upon to monitor services for sending alerts to site admins when
+  # something is wrong with Sourcegraph, thus its memory requests and limits are the same to
+  # guarantee it has enough memory to perform its job reliably and prevent conflicts with
+  # other pods on the same host node.
+  #
+  # The limit chosen here is based on what works reliably on Sourcegraph.com with lots
+  # of traffic.
+  resources:
+    limits:
+      cpu: "2"
+      memory: 6G
+    requests:
+      cpu: 500m
+      memory: 6G
+  # -- Security context for the `prometheus` pod,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
+  podSecurityContext:
+    fsGroup: 100
+    fsGroupChangePolicy: "OnRootMismatch"
+  serviceAccount:
+    # -- Enable creation of ServiceAccount
+    create: true
+    # -- Name of the ServiceAccount to be created or an existing ServiceAccount
+    name: prometheus
+  # -- PVC Storage Request for `prometheus` data volume
+  storageSize: 200Gi
+
+redisCache:
+  # -- Enable `redis-cache` Redis server
+  enabled: true
+  image:
+    # -- Docker image tag for the `redis-cache` image
+    defaultTag: 4.1.0@sha256:7f3a3ab227fc5cb640eb72f117ebc8a065b5d09ccd2a1c7383790161cd4dbd94
+    # -- Docker image name for the `redis-cache` image
+    name: "redis-cache"
+  connection:
+    # -- Name of existing secret to use for Redis endpoint
+    # The secret must contain the key `endpoint` and should follow IANA specification
+    # learn more from the [Helm docs](https://docs.sourcegraph.com/admin/install/kubernetes/helm#using-external-redis-instances)
+    existingSecret: ""
+    # -- Endpoint to use for redis-cache. Supports either host:port or IANA specification
+    endpoint: "redis-cache:6379"
+  # -- Security context for the `redis-cache` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 999
+    runAsGroup: 1000
+    readOnlyRootFilesystem: true
+  # -- Resource requests & limits for the `redis-cache` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: "1"
+      memory: 7Gi
+    requests:
+      cpu: "1"
+      memory: 7Gi
+  # -- Name used by resources. Does not affect service names or PVCs.
+  name: "redis-cache"
+  # -- Security context for the `redis-cache` pod,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
+  podSecurityContext:
+    fsGroup: 1000
+    fsGroupChangePolicy: "OnRootMismatch"
+  serviceAccount:
+    # -- Enable creation of ServiceAccount for `redis-cache`
+    create: false
+    # -- Name of the ServiceAccount to be created or an existing ServiceAccount
+    name: ""
+  # -- PVC Storage Request for `redis-cache` data volume
+  storageSize: 100Gi
+
+redisExporter:
+  image:
+    # -- Docker image tag for the `redis-exporter` image
+    defaultTag: 4.1.0@sha256:edb0c9b19cacd90acc78f13f0908a7e6efd1df704e401805c24bffd241285f70
+    # -- Docker image name for the `redis-exporter` image
+    name: "redis_exporter"
+  # -- Security context for the `redis-exporter` sidecar container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 999
+    runAsGroup: 1000
+    readOnlyRootFilesystem: true
+  # -- Resource requests & limits for the `redis-exporter` sidecar container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: 10m
+      memory: 100Mi
+    requests:
+      cpu: 10m
+      memory: 100Mi
+
+redisStore:
+  # -- Enable `redis-store` Redis server
+  enabled: true
+  connection:
+    # -- Name of existing secret to use for Redis endpoint
+    # The secret must contain the key `endpoint` and should follow IANA specification
+    # learn more from the [Helm docs](https://docs.sourcegraph.com/admin/install/kubernetes/helm#using-external-redis-instances)
+    existingSecret: ""
+    # -- Endpoint to use for redis-store. Supports either host:port or IANA specification
+    endpoint: "redis-store:6379"
+  image:
+    # -- Docker image tag for the `redis-store` image
+    defaultTag: 4.1.0@sha256:e46c4b0f740b4e58a75d0b44339c3ae252f57ee02cb91b9f74355005d6497dd3
+    # -- Docker image name for the `redis-store` image
+    name: "redis-store"
+  # -- Security context for the `redis-store` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 999
+    runAsGroup: 1000
+    readOnlyRootFilesystem: true
+  # -- Resource requests & limits for the `redis-store` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: "1"
+      memory: 7Gi
+    requests:
+      cpu: "1"
+      memory: 7Gi
+  # -- Name used by resources. Does not affect service names or PVCs.
+  name: "redis-store"
+  # -- Security context for the `redis-store` pod,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
+  podSecurityContext:
+    fsGroup: 1000
+    fsGroupChangePolicy: "OnRootMismatch"
+  serviceAccount:
+    # -- Enable creation of ServiceAccount for `redis-store`
+    create: false
+    # -- Name of the ServiceAccount to be created or an existing ServiceAccount
+    name: ""
+  # -- PVC Storage Request for `redis-store` data volume
+  storageSize: 100Gi
+
+repoUpdater:
+  image:
+    # -- Docker image tag for the `repo-updater` image
+    defaultTag: 4.1.0@sha256:7d15b9e1094f4b166363ad6e15b9c33e58e9a47f2a8ca1e72653d0c8fda5b255
+    # -- Docker image name for the `repo-updater` image
+    name: "repo-updater"
+  # -- Security context for the `repo-updater` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 100
+    runAsGroup: 101
+    readOnlyRootFilesystem: true
+  # -- Name used by resources. Does not affect service names or PVCs.
+  name: "repo-updater"
+  # -- Security context for the `repo-updater` pod,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
+  podSecurityContext: {}
+  # -- Resource requests & limits for the `repo-updater` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: "1"
+      memory: 2Gi
+    requests:
+      cpu: "1"
+      memory: 500Mi
+  serviceAccount:
+    # -- Enable creation of ServiceAccount for `repo-updater`
+    create: false
+    # -- Name of the ServiceAccount to be created or an existing ServiceAccount
+    name: ""
+
+searcher:
+  image:
+    # -- Docker image tag for the `searcher` image
+    defaultTag: 4.1.0@sha256:4fedf8c4ee163984e6eb3be34e6b4545f63613efb4c7acfaab6d1ab7be248e7b
+    # -- Docker image name for the `searcher` image
+    name: "searcher"
+  # -- Security context for the `searcher` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 100
+    runAsGroup: 101
+    readOnlyRootFilesystem: true
+  # -- Security context for the `searcher` pod,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
+  podSecurityContext: {}
+  # -- Name used by resources. Does not affect service names or PVCs.
+  name: "searcher"
+  # -- Number of `searcher` pod
+  replicaCount: 2
+  # -- Resource requests & limits for the `searcher` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: "2"
+      ephemeral-storage: 26G
+      memory: 2G
+    requests:
+      cpu: 500m
+      ephemeral-storage: 25G
+      memory: 500M
+  serviceAccount:
+    # -- Enable creation of ServiceAccount for `searcher`
+    create: false
+    # -- Name of the ServiceAccount to be created or an existing ServiceAccount
+    name: ""
+  persistentVolume:
+    # -- Enable create of PersistentVolumeClaim for 'searcher'
+    create: true
+    # -- Name of the PersistentVolume for 'searcher'
+    volumeName:
+    # -- Size of PersistentVolume for 'searcher', unused if persistentVolume.enabled is false
+    storageSize: 25G
+
+storageClass:
+  # -- Enable creation of storageClass.
+  # Disable if you have your own existing storage class
+  create: true
+  # -- Name of the storageClass.
+  # Use to customize to the existing storage class name
+  name: sourcegraph
+  # -- Name of the storageClass provisioner,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/storage/storage-classes/#provisioner)
+  # and consult your cloud provider persistent storage documentation
+  provisioner: kubernetes.io/gce-pd
+  # -- Value of `type` key in storageClass `parameters`,
+  # consult your cloud provider persistent storage documentation
+  type: pd-ssd
+  # -- Extra parameters of storageClass,
+  # consult your cloud provider persistent storage documentation
+  parameters: {}
+  # -- Persistent volumes topology configuration,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/storage/storage-classes/#allowed-topologies)
+  allowedTopologies: {}
+
+symbols:
+  image:
+    # -- Docker image tag for the `symbols` image
+    defaultTag: 4.1.0@sha256:8eef84ce05e28628c03fbd87a63f4356944332846ef063326a6b498884d8adcc
+    # -- Docker image name for the `symbols` image
+    name: "symbols"
+  # -- Security context for the `symbols` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 100
+    runAsGroup: 101
+    readOnlyRootFilesystem: true
+  # -- Security context for the `symbols` pod,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
+  podSecurityContext: {}
+  # -- Name used by resources. Does not affect service names or PVCs.
+  name: "symbols"
+  # -- Number of `symbols` pod
+  replicaCount: 1
+  # -- Resource requests & limits for the `symbols` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: "2"
+      ephemeral-storage: 12G
+      memory: 2G
+    requests:
+      cpu: 500m
+      ephemeral-storage: 10G
+      memory: 500M
+  serviceAccount:
+    # -- Enable creation of ServiceAccount for `symbols`
+    create: false
+    # -- Name of the ServiceAccount to be created or an existing ServiceAccount
+    name: ""
+  persistentVolume:
+    # -- Enable create of PersistentVolumeClaim for 'symbols'
+    create: false
+    # -- Name of the PersistentVolume for 'symbols'
+    volumeName:
+    # -- Size of PersistentVolume for 'symbols', unused if persistentVolume.enabled is false
+    storageSize: 10G
+
+syntectServer:
+  image:
+    # -- Docker image tag for the `syntect-server` image
+    defaultTag: 4.1.0@sha256:9df78574fd71cdcfe01912ed6ecd9a9b923fe02d2947995d4de19997ab6e4f13
+    # -- Docker image name for the `syntect-server` image
+    name: "syntax-highlighter"
+  # -- Security context for the `syntect-server` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 100
+    runAsGroup: 101
+    readOnlyRootFilesystem: true
+  # -- Name used by resources. Does not affect service names or PVCs.
+  name: "syntect-server"
+  # -- Security context for the `syntect-server` pod,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
+  podSecurityContext: {}
+  # -- Number of `syntect-server` pod
+  replicaCount: 1
+  # -- Resource requests & limits for the `syntect-server` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: "4"
+      memory: 6G
+    requests:
+      cpu: 250m
+      memory: 2G
+  serviceAccount:
+    # -- Enable creation of ServiceAccount for `syntect-server`
+    create: false
+    # -- Name of the ServiceAccount to be created or an existing ServiceAccount
+    name: ""
+
+jaeger:
+  collector:
+    # -- Name of jaeger `collector` service 
+    name: ""
+    # -- Add extra annotations to jaeger `collector` service
+    serviceAnnotations: {}
+    # -- Add extra labels to jaeger `collector` service
+    serviceLabels: {}
+    # -- Kubernetes service type of jaeger `collector` service,
+    # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types)
+    # @default -- "ClusterIP"
+    serviceType: ""
+  # -- Enable `jaeger`
+  enabled: false
+  image:
+    # -- Docker image tag for the `jaeger` image
+    defaultTag: 4.1.0@sha256:9c8e01e6d667197cbf994ea1a3050c9e2fc97a8442ebe3c9756d5bbd92e7823c
+    # -- Docker image name for the `jaeger` image
+    name: "jaeger-all-in-one"
+  # -- Name used by resources. Does not affect service names or PVCs.
+  name: "jaeger"
+  # -- Security context for the `jaeger` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 100
+    runAsGroup: 101
+    readOnlyRootFilesystem: true
+  # -- Security context for the `jaeger` pod,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
+  podSecurityContext: {}
+  query:
+    # -- Name of jaeger `query` service 
+    name: ""
+    # -- Add extra annotations to jaeger `query` service
+    serviceAnnotations: {}
+    # -- Add extra labels to jaeger `query` service
+    serviceLabels: {}
+    # -- Kubernetes service type of jaeger `query` service,
+    # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/services-networking/service/#publishing-services-service-types)
+    # @default -- "ClusterIP"
+    serviceType: ""
+  # -- Number of `jaeger` pod
+  replicaCount: 1
+  # -- Resource requests & limits for the `jaeger` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: "1"
+      memory: 1G
+    requests:
+      cpu: 500m
+      memory: 500M
+  serviceAccount:
+    # -- Enable creation of ServiceAccount for `jaeger`
+    create: false
+    # -- Name of the ServiceAccount to be created or an existing ServiceAccount
+    name: ""
+
+worker:
+  image:
+    # -- Docker image tag for the `worker` image
+    defaultTag: 4.1.0@sha256:7171ed01692eb01cb058d0084c73aad547a8ae2b4b92bf1c78b01ea73b62b943
+    # -- Docker image name for the `worker` image
+    name: "worker"
+  # -- Security context for the `worker` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-container)
+  containerSecurityContext:
+    allowPrivilegeEscalation: false
+    runAsUser: 100
+    runAsGroup: 101
+    readOnlyRootFilesystem: true
+  # -- Name used by resources. Does not affect service names or PVCs.
+  name: "worker"
+  # -- Security context for the `worker` pod,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/tasks/configure-pod-container/security-context/#set-the-security-context-for-a-pod)
+  podSecurityContext: {}
+  # -- Number of `worker` pod
+  replicaCount: 1
+  # -- Resource requests & limits for the `worker` container,
+  # learn more from the [Kubernetes documentation](https://kubernetes.io/docs/concepts/configuration/manage-resources-containers/)
+  resources:
+    limits:
+      cpu: "2"
+      memory: 4G
+    requests:
+      cpu: 500m
+      memory: 2G
+  serviceAccount:
+    # -- Enable creation of ServiceAccount for `worker`
+    create: false
+    # -- Name of the ServiceAccount to be created or an existing ServiceAccount
+    name: ""
+
+# -- Additional resources to include in the rendered manifest. Templates are supported.
+extraResources: []

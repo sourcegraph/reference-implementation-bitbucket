@@ -1,0 +1,124 @@
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  annotations:
+    description: Stores clones of repositories to perform Git operations.
+  labels:
+    {{- include "sourcegraph.labels" . | nindent 4 }}
+    {{- if .Values.gitserver.labels }}
+      {{- toYaml .Values.gitserver.labels | nindent 4 }}
+    {{- end }}
+    deploy: sourcegraph
+    app.kubernetes.io/component: gitserver
+  name: {{ .Values.gitserver.name }}
+spec:
+  replicas: {{ .Values.gitserver.replicaCount }}
+  revisionHistoryLimit: {{ .Values.sourcegraph.revisionHistoryLimit }}
+  selector:
+    matchLabels:
+      {{- include "sourcegraph.selectorLabels" . | nindent 6 }}
+      app: gitserver
+  serviceName: gitserver
+  template:
+    metadata:
+      annotations:
+        kubectl.kubernetes.io/default-container: gitserver
+      {{- include "sourcegraph.redisChecksum" . | nindent 8 }}
+      {{- if .Values.sourcegraph.podAnnotations }}
+      {{- toYaml .Values.sourcegraph.podAnnotations | nindent 8 }}
+      {{- end }}
+      {{- if .Values.gitserver.podAnnotations }}
+      {{- toYaml .Values.gitserver.podAnnotations | nindent 8 }}
+      {{- end }}
+      labels:
+      {{- include "sourcegraph.selectorLabels" . | nindent 8 }}
+      {{- if .Values.sourcegraph.podLabels }}
+      {{- toYaml .Values.sourcegraph.podLabels | nindent 8 }}
+      {{- end }}
+      {{- if .Values.gitserver.podLabels }}
+      {{- toYaml .Values.gitserver.podLabels | nindent 8 }}
+      {{- end }}
+        app: gitserver
+        group: backend
+        type: gitserver
+        deploy: sourcegraph
+    spec:
+      containers:
+      - name: gitserver
+        args: {{- default (list "run") .Values.gitserver.args | toYaml | nindent 8 }}
+        image: {{ include "sourcegraph.image" (list . "gitserver") }}
+        imagePullPolicy: {{ .Values.sourcegraph.image.pullPolicy }}
+        env:
+        {{- include "sourcegraph.redisConnection" .| nindent 8 }}
+        {{- range $name, $item := .Values.gitserver.env}}
+        - name: {{ $name }}
+          {{- $item | toYaml | nindent 10 }}
+        {{- end }}
+        {{- include "sourcegraph.openTelemetryEnv" . | nindent 8 }}
+        terminationMessagePolicy: FallbackToLogsOnError
+        livenessProbe:
+          initialDelaySeconds: 5
+          tcpSocket:
+            port: rpc
+          timeoutSeconds: 5
+        ports:
+        - containerPort: 3178
+          name: rpc
+        {{- if not .Values.sourcegraph.localDevMode }}
+        resources:
+          {{- toYaml .Values.gitserver.resources | nindent 10 }}
+        {{- end }}
+        securityContext:
+          {{- toYaml .Values.gitserver.containerSecurityContext | nindent 10 }}
+        volumeMounts:
+        - mountPath: /tmp
+          name: tmpdir
+        - mountPath: /data/repos
+          name: repos
+        {{- if .Values.gitserver.sshSecret }}
+        - mountPath: /home/sourcegraph/.ssh
+          name: ssh
+        {{- end }}
+        {{- if .Values.gitserver.extraVolumeMounts }}
+        {{- toYaml .Values.gitserver.extraVolumeMounts | nindent 8 }}
+        {{- end }}
+      {{- if .Values.gitserver.extraContainers }}
+        {{- toYaml .Values.gitserver.extraContainers | nindent 6 }}
+      {{- end }}
+      securityContext:
+        {{- toYaml .Values.gitserver.podSecurityContext | nindent 8 }}
+      {{- include "sourcegraph.nodeSelector" (list . "gitserver" ) | trim | nindent 6 }}
+      {{- include "sourcegraph.affinity" (list . "gitserver" ) | trim | nindent 6 }}
+      {{- include "sourcegraph.tolerations" (list . "gitserver" ) | trim | nindent 6 }}
+      {{- with .Values.sourcegraph.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- include "sourcegraph.renderServiceAccountName" (list . "gitserver") | trim | nindent 6 }}
+      volumes:
+      - name: tmpdir
+        emptyDir: {}
+      - name: repos
+      {{- if .Values.gitserver.sshSecret }}
+      - name: ssh
+        secret:
+          defaultMode: 0644
+          secretName: {{ .Values.gitserver.sshSecret }}
+      {{- end }}
+      {{- if .Values.gitserver.extraVolumes }}
+      {{- toYaml .Values.gitserver.extraVolumes | nindent 6 }}
+      {{- end }}
+  updateStrategy:
+    type: RollingUpdate
+  volumeClaimTemplates:
+  - metadata:
+      name: repos
+    spec:
+      accessModes:
+      - ReadWriteOnce
+      resources:
+        requests:
+          # The size of disk used to mirror your git repositories.
+          # If you change this, also change indexed-search's disk size.
+          storage: {{ .Values.gitserver.storageSize }}
+      storageClassName: {{ .Values.storageClass.name }}
