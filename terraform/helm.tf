@@ -67,8 +67,7 @@ resource "helm_release" "cluster_autoscaler" {
 }
 
 
-resource "helm_release" "sourcegraph_local_chart" {
-  count = var.use_remote_charts == false ? 1 : 0
+resource "helm_release" "sourcegraph" {
   ### Wait for ALB controller before          ###
   ### installing Sourcegraph and an ingress   ###
   depends_on       = [module.eks, aws_iam_role_policy_attachment.additional, aws_eks_addon.addons, helm_release.cluster_autoscaler, helm_release.aws-load-balancer-controller]
