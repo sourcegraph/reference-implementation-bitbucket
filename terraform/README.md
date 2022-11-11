@@ -2,8 +2,6 @@
 
 This repo uses the [eks module](https://github.com/terraform-aws-modules/terraform-aws-eks) to provision an EKS cluster, and will additionally deploy the AWS Load Balancer Controller, the CSI EBS add on, and Sourcegraph on that cluster.
 
-This specific reference implementation uses a local Sourcegraph chart to avoid potential limits in regards to ephemeral storage for clusters. To use the remote Helm repository and ephemeral storage for specific deployments, set `use_remote_charts` to true in `terraform.tfvars`.
-
 ## Setup
 
 ### Edit Variables
