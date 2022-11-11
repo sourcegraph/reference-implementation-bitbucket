@@ -20,7 +20,7 @@ There are a few updates to make for your specific instance, detailed below:
 
 Optional Steps
 
-4. Update the storageSize values for `gitserver` and `indexedSearch` to align with your Bitbucket instance size (~1.3x your code base for `gitserver` and ~.6x your codebase for `indexedSearch`).
+4. Update the storageSize values for `gitserver` and `indexedSearch` to align with your Bitbucket instance size (~1.3x your code base total size for `gitserver` and ~.6x your codebase total size for `indexedSearch`).
 5. The `storageClass.reclaimPolicy` is set to `Delete`, you may wish to set to `Retain`.
 
 ## Deploy
