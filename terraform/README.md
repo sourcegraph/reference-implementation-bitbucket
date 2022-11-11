@@ -15,8 +15,8 @@ The override.yaml file is already configured for this repository in the `resourc
 There are a few updates to make for your specific instance, detailed below:
 
 1. In `override.yaml`, update line 20 (`frontend.ingress.host`) to the URL you wish to host your Sourcegraph instance at.
-2. Replace the contents of `tls.key` with the private key for your TLS certificate.
-3. Replace the contents of `tls.crt` with the certificate chain for your TLS certificate.
+2. Create a file called `tls.key` and copy the private key for your TLS certificate into the file.
+3. Create a file called `tls.crt` and copy the certificate chain for your TLS certificate into the file.
 
 Optional Steps
 
