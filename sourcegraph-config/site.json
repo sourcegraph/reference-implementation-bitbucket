@@ -1,11 +1,7 @@
-/*
-
-See the notes below and documentation at
-https://docs.sourcegraph.com/admin/config/site_config
-for more information. This should go into your site config
-after spinning up your Sourcegraph instance.
-
-*/
+// See the notes below and documentation at
+// https://docs.sourcegraph.com/admin/config/site_config
+// for more information. This should go into your site config
+// after spinning up your Sourcegraph instance.
 
 {
     // The externally accessible URL for Sourcegraph (i.e., what you type into your browser)

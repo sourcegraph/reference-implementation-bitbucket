@@ -47,7 +47,7 @@ codeintel-db:
       memory: 4G
   storageSize: 200Gi
 gitserver:
-  replicaCount: 2
+  replicaCount: 1
   resources:
     limits:
       cpu: '6'
@@ -57,7 +57,7 @@ gitserver:
       memory: 25G
   storageSize: 650Gi
 indexedSearch:
-  replicaCount: 2
+  replicaCount: 1
   resources:
     limits:
       cpu: '8'

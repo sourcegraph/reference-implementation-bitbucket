@@ -1,11 +1,7 @@
-/* 
-
-See https://docs.sourcegraph.com/admin/external_service/bitbucket_server
-and https://docs.sourcegraph.com/admin/repo/permissions#bitbucket_server 
-for details on configuring your own Bitbucket instance to work with Sourcegraph.
-This config will go into the code host config for Bitbucket Server.
-
-*/
+// See https://docs.sourcegraph.com/admin/external_service/bitbucket_server
+// and https://docs.sourcegraph.com/admin/repo/permissions#bitbucket_server 
+// for details on configuring your own Bitbucket instance to work with Sourcegraph.
+// This config will go into the code host config for Bitbucket Server.
 
 {
     "url": "https://bitbucket.example.com",
