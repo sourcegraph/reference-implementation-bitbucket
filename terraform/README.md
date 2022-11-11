@@ -10,8 +10,6 @@ This specific reference implementation uses a local Sourcegraph chart to avoid p
 
 In `terraform.tfvars`, uncomment the variables you wish to override their default values (as found in `variables.tf`) and set new values. For the Instance Type in each node group, this should be an array of strings. All variable types can be seen in `variables.tf`.
 
-If you plan to set a desired size for your node group instead of using the Cluster Autoscaler, uncomment line 32 in `main.tf` and comment lines 23-67 in `helm.tf`, as well as lines 34-138 in `iam.tf` to disable the Cluster Autoscaler
-
 ### Create override.yaml
 
 Using the [Resource Estimator](https://docs.sourcegraph.com/admin/deploy/resource_estimator) and the information outlined in the (helm documentation)[https://docs.sourcegraph.com/admin/deploy/kubernetes/helm#configure-sourcegraph-on-elastic-kubernetes-service-eks] to generate an `override.yaml` file and move it into the `resources` directory
