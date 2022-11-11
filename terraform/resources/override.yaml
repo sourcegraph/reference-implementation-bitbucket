@@ -15,7 +15,6 @@ frontend:
       # additional aws alb ingress controller supported annotations
       # ...
     # replace with your actual domain
-    secretName: sourcegraph-tls
     host: bitbucket-sandbox.sourcegraph.com
   replicaCount: 2
   resources:
