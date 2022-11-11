@@ -85,23 +85,3 @@ resource "helm_release" "sourcegraph_local_chart" {
     value = "sourcegraph-tls"
   }
 }
-
-resource "helm_release" "sourcegraph_remote_chart" {
-  count = var.use_remote_charts ? 1 : 0
-  ### Wait for ALB controller before          ###
-  ### installing Sourcegraph and an ingress   ###
-  depends_on       = [module.eks, aws_iam_role_policy_attachment.additional, aws_eks_addon.addons, helm_release.cluster_autoscaler, helm_release.aws-load-balancer-controller]
-  name             = "sourcegraph"
-  repository       = "https://helm.sourcegraph.com/release"
-  chart            = "sourcegraph"
-  namespace        = "sourcegraph"
-  version          = var.sourcegraph_version
-  values           = [
-      "${file("./resources/override-remote.yaml")}"
-  ]
-
-  set {
-    name  = "frontend.ingress.tlsSecret"
-    value = "sourcegraph-tls"
-  }
-}

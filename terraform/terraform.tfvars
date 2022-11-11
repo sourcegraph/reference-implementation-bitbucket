@@ -6,7 +6,6 @@ deployment_name = "bitbucket-sandbox"
 
 ### Sourcegraph Variables ###
 # sourcegraph_version = 
-# use_remote_charts =
 
 ### Node Group One Customizations ###
 # node_group_one_instance_types = []

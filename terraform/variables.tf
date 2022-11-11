@@ -34,12 +34,7 @@ variable "node_group_one_desired_size" {
 
 ### Sourcegraph Variables ###
 variable "sourcegraph_version" {
-  description = "Version number of Sourcegraph chart to install -- ignored if using local chart"
+  description = "Version number of Sourcegraph chart to install"
   type        = string
   default     = "4.1.3"
-}
-variable "use_remote_charts" {
-  description = "Use the remote charts from https://helm.sourcegraph.com/release. This enables the searcher and symbols pods to use ephemeral storage as dictated in ./resources/override.yaml"
-  type        = bool
-  default     = false
 }
