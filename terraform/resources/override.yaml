@@ -55,24 +55,24 @@ gitserver:
       memory: 25G
   storageSize: 650Gi
 indexedSearch:
-  replicaCount: 1
+  replicaCount: 2
   resources:
     limits:
       cpu: '8'
-      memory: 10G
+      memory: 20G
     requests:
       cpu: '4'
-      memory: 5G
+      memory: 10G
   storageSize: 300Gi
 indexedSearchIndexer:
   replicaCount: 1
   resources:
     limits:
       cpu: '4'
-      memory: 10G
+      memory: 20G
     requests:
       cpu: '2'
-      memory: 5G
+      memory: 10G
 minio:
   replicaCount: 1
   resources:
